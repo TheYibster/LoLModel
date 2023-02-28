@@ -1,0 +1,173 @@
+---
+title: "League of Legends: Outcome From the First 10 Minutes"
+author: "Yibo Liang"
+output:
+    html_document:
+      toc: true
+      toc_float: true
+      code_folding: show
+---
+# Introduction
+
+The purpose of this model is to predict the outcome of a standard League of Legends(LoL) ranked match based on the first ten minutes of the match. I will be 
+using this <a href="https://www.kaggle.com/datasets/bobbyscience/league-of-legends-diamond-ranked-games-10-min">dataset</a>, from Kaggle by Yi Lan Ma, to predict the outcomes of a ranked LoL match based solely off the first 10 minutes of the match.
+
+## Let's Get Familiar with LoL
+
+### What is League of Legends?
+
+League of Legends(LoL) is a 5v5, player vs player, MOBA game. If you don't know what that means...great! It doesn't matter for the purposes of this model! At it's core, LoL is a game with two teams (Blue and Red) battling it out to capture the enemy's base (aka Destroy the Nexus).
+
+![**(Visual 1.1)**](./images/Map.jpeg)
+
+There are 3 paths/lanes a team can take towards the opponent's base. However, each lane consists of 2 turrets, an inhibitor turret, and an inhibitor preventing a team's advance towards the opponent's base; the Nexus itself also has 2 turrets for self-defense (Refer to Visual 1.1 for reference). We'll call all of these turrets/inhibitors "Objectives," things that a team must take in order to win. Long story short, the more Objectives a team captures, the closer they are to victory. If the enemy Nexus is destroyed, then the team that destroyed it is the winner of the match. Easy right? Oh, no. The game is a lot more complicated than that.
+
+Introducing "Neutral Objectives." Unlike Objectives, Neutral Objectives are things that both teams can take in order to get closer to victory. There are three Neutral Objectives, but our purposes, we will only be taking a look at 2 of them: Rift Herald and Dragon.
+
+### Why Do We Care?
+
+# Loading All Packages and Data
+
+```{r}
+# Load Packages
+library(tidyverse)
+library(tidymodels)
+library(kknn)
+library(ggplot2)
+library(corrr)
+library(corrplot)
+library(reshape2)
+
+# Assigning the data to a variable
+raw_df <- read_csv("raw_data/high_diamond_ranked_10min.csv")
+
+# how does it look?
+head(raw_df)
+```
+
+There are clearly some problems to be addressed; major problems are linear dependency and messy categorical variables. We will take a closer look at these problems and tidy them in the next section.
+
+# Exploratory Data Analysis
+
+## Problems with the Data: Linear Dependence
+
+### Duplicate Variables
+
+Looking at the raw data, we can see that there are many variables that are just additive inverses of an already existing variable. This makes logical sense because if a team is ahead by 300 gold the other team is obviously behind by 300 gold.
+
+Let's take a closer look at these correlations:
+
+```{r}
+corr_simple <- function(data=raw_df,sig=0.9){
+  #convert data to numeric in order to run correlations
+  #convert to factor first to keep the integrity of the data - each value will become a number rather than turn into NA
+  df_cor <- data %>% mutate_if(is.character, as.factor)
+  df_cor <- df_cor %>% mutate_if(is.factor, as.numeric)
+  #run a correlation and drop the insignificant ones
+  corr <- cor(df_cor)
+  #prepare to drop duplicates and correlations of 1     
+  corr[lower.tri(corr,diag=TRUE)] <- NA 
+  #turn into a 3-column table
+  corr <- as.data.frame(as.table(corr))
+  #remove the NA values from above 
+  corr <- na.omit(corr) 
+  #select significant values  
+  corr <- subset(corr, abs(Freq) > sig) 
+  #sort by highest correlation
+  corr <- corr[order(-abs(corr$Freq)),] 
+  #print table
+  print(corr)
+}
+corr_simple()
+```
+
+As one can see, there are quite a few variables that are just additive inverses of another variable. This means that they have a correlation of -1. At the same time, there are also variables that are perfectly correlated. 
+
+### Let's Drop a Few Columns
+
+I will go ahead a drop these variables as they add no new information that their correlated variables do not provide. There are also two variables on both teams that are heavily correlated: AvgLevel and Total Experience. I will not drop them here as they are not perfectly correlated; there might be information that one provides that the other does not. That is not to say they will never get dropped from the data after further testing. I will also be dropping `gameId` as it is irrelevant for our purposes.
+
+```{r}
+# Drop duplicate variables (perfectly correlated variables)
+reduced_df <- subset(raw_df, select = -c(gameId, redFirstBlood, redKills, redDeaths, redGoldDiff, redExperienceDiff, blueTotalGold, blueTotalMinionsKilled, redTotalMinionsKilled, redTotalGold))
+
+cor_mat <- reduced_df %>%
+  correlate() %>% 
+  stretch() %>%
+  ggplot(aes(x, y, fill = r)) +
+  geom_tile() +
+  geom_text(aes(label = as.character(fashion(r))))
+
+# Convert factors into factors
+reduced_df['blueWins'] = as.factor(reduced_df$blueWins)
+reduced_df['blueFirstBlood'] = as.factor(reduced_df$blueFirstBlood)
+reduced_df['blueDragons'] = as.factor(reduced_df$blueDragons)
+reduced_df['blueHeralds'] = as.factor(reduced_df$blueHeralds)
+reduced_df['redDragons'] = as.factor(reduced_df$redDragons)
+reduced_df['redHeralds'] = as.factor(reduced_df$redHeralds)
+reduced_df['blueTowersDestroyed'] = as.factor(reduced_df$blueTowersDestroyed)
+reduced_df['redTowersDestroyed'] = as.factor(reduced_df$redTowersDestroyed)
+
+# check the new data
+head(reduced_df)
+dim(reduced_df)
+```
+
+Let's take a look at a correlation matrix to get to know our new data:
+
+```{r}
+cor_mat
+```
+
+
+
+Our data is already looking much better! There are still heavily correlated variables but we take a closer look at them when we fit our model.
+
+## Visual representations
+
+One of the most important factors that determines a team's ability to win is how many objectives they have. Let's take a look at the importance through a percent stacked bar chart.
+
+```{r}
+ggplot(reduced_df, aes(fill=blueDragons, x=blueWins)) + 
+    geom_bar(position="fill")
+ggplot(reduced_df, aes(fill=blueTowersDestroyed, x=blueWins)) + 
+    geom_bar(position="fill")
+ggplot(reduced_df, aes(fill=blueHeralds, x=blueWins)) + 
+    geom_bar(position="fill")
+ggplot(reduced_df, aes(fill=blueFirstBlood, x=blueWins)) + 
+    geom_bar(position="fill")
+```
+
+As one can see, in the case that blue team wins more objectives were captured in the first 10 minutes relatively speaking when compared to the outcome that blue loses. Interestingly, first blood also occurs more when the team wins rather than loses. However, there are a considerable amount of data that shows a team winning without capturing an objective in the first 10 minutes. When this happens, a team is most likely winning through the lead that that the team has acquired through gold and experience from CS and Kills. Let's take a look at those next:
+
+```{r}
+ggplot(reduced_df, aes(x = blueTotalExperience, 
+                     y = blueGoldPerMin, 
+                     color=blueWins)) +
+  geom_point(alpha=0.25) +
+  labs(title = "Relationship between Gold, Exp, and Win")
+```
+
+The graph above shows that more the more gold and experience a team has, the more likely they are to win the match. Which makes a lot of sense; gold, experience, and objectives are the core to winning a match of league of legends.
+
+# Train-Test Split
+
+## Initial Split
+
+I will go ahead and perform the initial split of the data into 80-20 train-test. What is interesting to note here is that I will be stratifying the data on `blueWins`. The reasoning behind this is that it is argued in LoL that, in general, the blue team has a higher chance of wining becuase of 'pick/ban phase.' We will not get into the nitty-gritty of pick/ban and simply take for granted that blue side may have a higher win percentage. For this assumption, we must keep the distribution of `blueWins` proportional in our data splits.
+
+```{r}
+df_split <- initial_split(reduced_df, prop = 0.80, strata = blueWins)
+titanic_train <- training(df_split)
+titanic_test <- testing(df_split)
+```
+
+
+## Cross-Validation
+
+### Why Cross-Validate?
+
+Now that our data has been split into training and testing data, let's decide on a cross-validation method to use for our training data. The reason why we need a cross validation is because we need to see how accurate our model is before testing it with the test data. To do this, we will further split our training data into training and validation data; we will train a model on the training data and assess it using the validation data before running it with the test data.
+
+### K-fold Cross-Validation
+
