@@ -37,6 +37,7 @@ library(ggplot2)
 library(corrr)
 library(corrplot)
 library(reshape2)
+library(rcompanion)
 
 # Assigning the data to a variable
 raw_df <- read_csv("raw_data/high_diamond_ranked_10min.csv")
@@ -91,12 +92,8 @@ I will go ahead a drop these variables as they add no new information that their
 # Drop duplicate variables (perfectly correlated variables)
 reduced_df <- subset(raw_df, select = -c(gameId, redFirstBlood, redKills, redDeaths, redGoldDiff, redExperienceDiff, blueTotalGold, blueTotalMinionsKilled, redTotalMinionsKilled, redTotalGold))
 
-cor_mat <- reduced_df %>%
-  correlate() %>% 
-  stretch() %>%
-  ggplot(aes(x, y, fill = r)) +
-  geom_tile() +
-  geom_text(aes(label = as.character(fashion(r))))
+cor_df <- correlate(reduced_df)
+network_plot(cor_df, min_cor = .7)
 
 # Convert factors into factors
 reduced_df['blueWins'] = as.factor(reduced_df$blueWins)
@@ -111,12 +108,12 @@ reduced_df['redTowersDestroyed'] = as.factor(reduced_df$redTowersDestroyed)
 # check the new data
 head(reduced_df)
 dim(reduced_df)
-```
 
-Let's take a look at a correlation matrix to get to know our new data:
+reduced_df %>% 
+  select(is.numeric) %>% 
+  cor() %>% 
+  corrplot(type = "lower", diag = FALSE)
 
-```{r}
-cor_mat
 ```
 
 
@@ -150,18 +147,34 @@ ggplot(reduced_df, aes(x = blueTotalExperience,
 
 The graph above shows that more the more gold and experience a team has, the more likely they are to win the match. Which makes a lot of sense; gold, experience, and objectives are the core to winning a match of league of legends.
 
-# Train-Test Split
+# Model Setup
 
 ## Initial Split
 
 I will go ahead and perform the initial split of the data into 80-20 train-test. What is interesting to note here is that I will be stratifying the data on `blueWins`. The reasoning behind this is that it is argued in LoL that, in general, the blue team has a higher chance of wining becuase of 'pick/ban phase.' We will not get into the nitty-gritty of pick/ban and simply take for granted that blue side may have a higher win percentage. For this assumption, we must keep the distribution of `blueWins` proportional in our data splits.
 
 ```{r}
+set.seed(10502)
+
 df_split <- initial_split(reduced_df, prop = 0.80, strata = blueWins)
-titanic_train <- training(df_split)
-titanic_test <- testing(df_split)
+df_train <- training(df_split)
+df_test <- testing(df_split)
 ```
 
+## Model recipe
+
+```{r}
+LoL_recipe <- recipe(blueWins ~ ., data = df_train) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_center(all_predictors()) %>% 
+  step_scale(all_predictors()) 
+
+LoL_recipe %>% 
+  prep() %>% 
+  bake(new_data = df_train)
+
+```
 
 ## Cross-Validation
 
@@ -170,4 +183,22 @@ titanic_test <- testing(df_split)
 Now that our data has been split into training and testing data, let's decide on a cross-validation method to use for our training data. The reason why we need a cross validation is because we need to see how accurate our model is before testing it with the test data. To do this, we will further split our training data into training and validation data; we will train a model on the training data and assess it using the validation data before running it with the test data.
 
 ### K-fold Cross-Validation
+
+```{r}
+df_folds <- vfold_cv(df_train, v = 5)
+```
+
+Here, we will be using 5-fold cross-validation since we only have around 8,000 observations in our training data.
+
+## Saving our Split, Folds, and Recipe
+```{r}
+save(df_folds, LoL_recipe, df_train, df_test, file= 
+       "./RDAfiles/splitrecipefold.rda")
+```
+
+# Model Preprocessing
+
+
+
+
 
