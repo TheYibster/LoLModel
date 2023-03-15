@@ -1,0 +1,31 @@
+variable, description, data type
+blueWins, Did the team win or lose, 1=yes 0=no
+blueWardsPlaced, The team's number of wards placed, numeric
+blueWardsDestroyed, The team's number of wards destroyed, numeric
+blueFirstBlood, Did the team get the first kill of the match?, 1=yes 0=no
+blueKills, The team's number of kills, numeric
+blueDeaths, The team's number of deaths, numeric
+blueAssists, The team's number of assists, numeric
+blueEliteMonsters, The number of Elite Monsters that the team took down, numeric
+blueDragons, The total number of dragons that the team took down, factor
+blueHerald, The total number of Heralds that the team took down, factor
+blueTowersDestroyed, The total number of towers that the team took down, factor
+blueAvgLevel, The team's average level across all five players, numeric
+blueTotalExperience, The total expeience gained by all five players, numeric
+blueTotalJungleMinionsKilled, total amount of jungle monsters killed by all five players, numeric
+blueGoldDiff, the gold difference between the two teams, numeric
+blueExperienceDiff, the experience difference between the two teams, numeric
+blueGoldPerMin, the team's gold income per minute, numeric
+blueCSPerMin, the team's minions killed per minute, numeric
+redWardsPlaced, the enemy team's number of wards placed, numeric
+redWardsDestroyed, the enemy team's number of towers destroyed, numeric
+redAssists, the enemy team's number of assists, numeric
+redElitsMonsters, The number of Elite Monsters that the enemy team took down, numeric
+redDragons, The total number of dragons that the enemy team took down, factor
+redHerald, The total number of Heralds that the enemy team took down, factor
+redTowersDestroyed, The total number of towers that the enemy team took down, factor
+redAvgLevel, The enemy team's average level across all five players, numeric
+redTotalExperience, The enemy team's total experience gained by all five player, numeric
+redTotalJungleMinionsKilled,  total amount of jungle monsters killed by the enemy team, numeric
+redCSPerMin, the enemy team's minions killed per minute, numeric
+redGoldPerMin, the enemy team's minions killed per minute, numeric

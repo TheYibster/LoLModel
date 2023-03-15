@@ -40,15 +40,5 @@ log_res <- fit_resamples(
   resamples = df_folds
 )
 
-# Best model for Knn
-show_best(knn_res, metric = "roc_auc")
-bestmodel <- select_by_one_std_err(knn_res,
-                                   metric = "roc_auc", neighbors)
-final_knnwf <- finalize_workflow(knn_wkflow, bestmodel)
-final_knnfit <- fit(final_knnwf, df_train)
-
-# Log model Final Fit
-final_logfit <- fit(log_wkflow, df_train)
-
-save(final_knnfit, file="~/PSTAT131/Final Project/RDAfiles/knn_model.rda")
-save(final_logfit, file="~/PSTAT131/Final Project/RDAfiles/log_model.rda")
+save(knn_res, file="~/PSTAT131/Final Project/RDAfiles/knn_res.rda")
+save(log_res, file="~/PSTAT131/Final Project/RDAfiles/log_res.rda")

@@ -5,6 +5,7 @@ library(kknn)
 library(yardstick)
 library(themis)
 library(glmnet)
+library(dplyr)
 
 load("~/PSTAT131/Final Project/RDAfiles/splitrecipefold.rda")
 
@@ -29,13 +30,4 @@ glm_res <- tune_grid(
   control = control_grid(verbose = TRUE)
 )
 
-# Choose Best Model
-bestmodel <- select_by_one_std_err(glm_res,
-                                   metric = "roc_auc",
-                                   penalty,
-                                   mixture
-)
-final_glmwf <- finalize_workflow(glm_wkflow, bestmodel)
-final_glmfit <- fit(final_glmwf, df_train)
-
-save(final_glmfit, file="~/PSTAT131/Final Project/RDAfiles/glm_model.rda")
+save(glm_res, file="~/PSTAT131/Final Project/RDAfiles/glm_res.rda")
