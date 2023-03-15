@@ -149,16 +149,13 @@ reduced_df %>%
   select(is.numeric) %>% 
   cor() %>% 
   corrplot(type = "lower", diag = FALSE)
-
 ```
-
-
 
 Our data is already looking much better; the duplicate variables are all gone! There are still heavily correlated variables but we'll take a closer look at them when we fit our model.
 
 ### Missing data
 
-Since I got the data from kaggle, there most likely will not be any missing data. But just in case, let's double check:
+Since I got the data from kaggle, there will most likely be no missing data. But just in case, let's double check:
 
 ```{r}
 sum(is.na(reduced_df))
@@ -214,7 +211,7 @@ Now that our data is clean and ready to work with; let's get to know our variabl
 
 Upon first glance, there are a lot of variables; however, if we think back to when I introduced gold, experience, and objectives, it's apparent that most of these variables are contributing to those three factors.
 
-As reference, let's visualize a few of their relations.
+As reference, let's visualizes `blueKills` as a relation with Gold.
 
 ```{r}
 ggplot(reduced_df, aes(x = blueKills, 
@@ -223,7 +220,7 @@ ggplot(reduced_df, aes(x = blueKills,
   labs(title = "Relationship between Gold and kills")
 ```
 
-Haha, if this is not clear that more kills leads to more gold, then I don't know what is. What about kills and experience?
+Great, a picture perfect linear relation! If this is not clear that more kills leads to more gold then I don't know what is. What about kills and experience?
 
 ```{r}
 ggplot(reduced_df, aes(x = blueKills, 
@@ -283,7 +280,7 @@ However, something interesting we must take note of is that it is argued in LoL 
 count(reduced_df, blueWins)
 ```
 
-Hmm, it seems that our model is actually quite balanced in terms of win-lose ratio; however, we must still stratify or split by `blueWins` in order to keep this 50-50 ratio across our training and testing sets.
+Interesting, it seems that our model is actually quite balanced in terms of win-lose ratio; however, we must still stratify or split by `blueWins` in order to keep this 50-50 ratio across our training and testing sets.
 
 I will go ahead and perform the initial split of the data into 80-20 train-test, and I will be stratifying the data on `blueWins`.
 
@@ -350,7 +347,7 @@ The models will be tuned in a separated R script; however the basic steps for ou
 4. Use the tune-grid() function to tune the model with different hyperparameters across all of out folds
 5. Save the tuned model results as a RDA file so we can load it into our report.
 
-By following these steps above, I went ahead and tuned 6 different models for our purposes. The models are Elastic Net, K--Nearest Neighbors, Logistical, Random Forest, Boosted Tree, and Support Vector Machine. We will go ahead and load in the results now:
+By following these steps above, I went ahead and tuned 6 different models for our purposes. The models are Elastic Net, K-Nearest Neighbors, Logistical, Random Forest, Boosted Tree, and Support Vector Machine. We will go ahead and load in the results now:
 
 ```{r}
 load('./RDAfiles/glm_res.rda')
@@ -544,11 +541,11 @@ $$
 {\displaystyle {\hat {\beta }}\equiv {\underset {\beta }{\operatorname {argmin} }}(\|y-X\beta \|^{2}+\lambda _{2}\|\beta \|^{2}+\lambda _{1}\|\beta \|_{1}).}
 $$
 
-A good way to thing about the Elastic Net method is that its a flexible net that catches everything in between the LASSO and Ridge methods.
+A good way to think about the Elastic Net method is that it's a flexible net that catches everything in between the LASSO and Ridge methods.
 
 ![**(Visual 1.5)**](./images/glm.webp)
 
-For our model, thought, the most optimal hyperparameters ended up being a penalty of 0 and mixture of 1. This actually means that a pure LASSO model fits our data the best. 
+For our model, though, the most optimal hyperparameters ended up being a penalty of 0 and mixture of 1. This actually means that a pure LASSO model fits our data the best. 
 
 Alright, enough about the methodology, let's fit the model to our testing data.
 
