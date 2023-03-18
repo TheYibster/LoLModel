@@ -16,11 +16,11 @@ using this <a href="https://www.kaggle.com/datasets/bobbyscience/league-of-legen
 
 ### What is League of Legends?
 
-League of Legends(LoL) is a 5v5, player vs player, MOBA game. If you don't know what that means...great! It doesn't matter for the purposes of this model! At it's core, LoL is a game with two teams(Blue and Red) of 5, with each player piloting a unique champion, battling it out to capture the enemy's base (aka Destroy the Nexus).
+League of Legends(LoL) is a 5v5, player vs player, MOBA game. If you don't know what that means...great! It doesn't matter for the purposes of this model! At it's core, LoL is a game with two teams(Blue and Red) of five players, with each player piloting a unique champion, battling it out to capture the enemy's base (aka Destroy the Nexus).
 
 ![**(Visual 1.1)**](./images/Map.jpeg)
 
-So what are the things a team needs in order to win?
+So what must a team do to win?
 
 ### Objectives
 
@@ -31,6 +31,8 @@ Objectives are are structures(towers, inhibitors, and Nexus) and monsters(dragon
 There are 3 paths/lanes a team can take towards the opponent's base. However, each lane consists of 2 turrets, an inhibitor turret, and an inhibitor preventing a team's advance towards the opponent's base; the Nexus itself also has 2 turrets for self-defense (Refer to Visual 1.1 for reference). Long story short, the more Objectives a team captures, the closer they are to the Nexus. If the enemy Nexus is destroyed, then the team that destroyed it is the winner of the match. Easy right? Oh, no. The game is a lot more complicated than that.
 
 Introducing "Neutral Objectives." Unlike Objectives, Neutral Objectives are things that both teams can take in order to get closer to victory. There are three Neutral Objectives, but our purposes, we will only be taking a look at 2 of them: Rift Herald and Dragon.
+
+If this all sounds like gibberish, just think of objectives as a measurement of progress. The more objectives equals the more progress a team has made.
 
 ### Gold
 
@@ -48,7 +50,7 @@ Gold allows players to purchase items for their champions effectively making the
 * Minions Killed
 * Elite Monsters Killed
 
-Basically, pretty much anything you do in LoL grants you gold.
+Basically, pretty much anything you do in LoL grants you gold. In simple terms, think of gold a a measurement of a team's power.
 
 ### Experience
 
@@ -60,13 +62,13 @@ Experience goes hand in hand with gold; it measures the level of a player's cham
 
 ![**exp**](./images/exp.webp)
 
-Basically, whenever you kill something, you gain experience.
+Basically, whenever you kill something, you gain experience. Again, think of experience as a team's growth.
 
 So the team's gold, experience, and objectives are basically a measurement of a team's success during a match of League of Legends.
 
 ### Why Do We Care?
 
-The gaming community generally agree on the importance of gold, experience, and objectives in a game of League of Legends; however, the debate about which of those should be prioritized is never-ending. Does having more gold lead to a team's win or is leveling up more important? Or should a team ignore their champion's strength and simply go for the objectives? By solving this phenomenon, we should ,theoretically, be able to win more of games.
+The League of Legends community generally agree on the importance of gold, experience, and objectives in a game of League of Legends; however, the debate about which of those should be prioritized is never-ending. Does having more gold lead to a team's win or is leveling up more important? Or should a team ignore their champion's strength and simply go for the objectives? By solving this phenomenon, we should ,theoretically, be able to win more of games.
 
 # Loading All Packages and Data
 
@@ -82,7 +84,11 @@ library(reshape2)
 library(rcompanion)
 library(vip)
 library(dplyr)
+
+tidymodels_prefer()
 ```
+
+Again, I will be  using this <a href="https://www.kaggle.com/datasets/bobbyscience/league-of-legends-diamond-ranked-games-10-min">dataset</a> from Kaggle by Yi Lan Ma.
 
 ```{r, warning=FALSE}
 # Assigning the data to a variable
@@ -123,7 +129,7 @@ corr_simple <- function(data=raw_df,sig=0.9){
 corr_simple()
 ```
 
-As one can see, there are quite a few variables that are just additive inverses of another variable. This means that they have a correlation of -1. At the same time, there are also variables that are perfectly correlated. 
+As one can see, there are quite a few variables that are just additive inverses of another variable. This means that they have a correlation of -1. At the same time, there are also variables that are perfectly correlated meaning that they have a correlation of 1. This is a big problem because these perfectly correlated variables are basically measuring the same things in our data; we need to drop them!
 
 ### Let's Drop a Few Columns
 
@@ -133,6 +139,8 @@ I will go ahead a drop these variables as they add no new information that their
 # Drop duplicate variables (perfectly correlated variables)
 reduced_df <- subset(raw_df, select = -c(gameId, redFirstBlood, redKills, redDeaths, redGoldDiff, redExperienceDiff, blueTotalGold, blueTotalMinionsKilled, redTotalMinionsKilled, redTotalGold))
 ```
+
+With duplicates sorted out, let's also convert the factors into factor types in our data frame as they are currently numeric types.
 
 ```{r}
 # Convert factors into factors
@@ -144,7 +152,11 @@ reduced_df['redDragons'] = as.factor(reduced_df$redDragons)
 reduced_df['redHeralds'] = as.factor(reduced_df$redHeralds)
 reduced_df['blueTowersDestroyed'] = as.factor(reduced_df$blueTowersDestroyed)
 reduced_df['redTowersDestroyed'] = as.factor(reduced_df$redTowersDestroyed)
+```
 
+Our data should be much cleaner and ready to be worked on, but let's take a look at the correlation matrix before we move on:
+
+```{r}
 reduced_df %>% 
   select(is.numeric) %>% 
   cor() %>% 
@@ -209,9 +221,9 @@ Now that our data is clean and ready to work with; let's get to know our variabl
 
 ### Variable Digest
 
-Upon first glance, there are a lot of variables; however, if we think back to when I introduced gold, experience, and objectives, it's apparent that most of these variables are contributing to those three factors.
+Upon first glance, there are a lot of variables; however, if we think back to when I introduced gold, experience, and objectives along with our correlation matrix, it's apparent that most of these variables are contributing to those three factors.
 
-As reference, let's visualizes `blueKills` as a relation with Gold.
+As reference, let's visualizes `blueKills` as a relation with blue team's Gold.
 
 ```{r}
 ggplot(reduced_df, aes(x = blueKills, 
@@ -220,7 +232,7 @@ ggplot(reduced_df, aes(x = blueKills,
   labs(title = "Relationship between Gold and kills")
 ```
 
-Great, a picture perfect linear relation! If this is not clear that more kills leads to more gold then I don't know what is. What about kills and experience?
+Great, a picture perfect linear relation(positive linear trend)! If this is not clear that more kills leads to more gold then I don't know what is. What about kills and experience?
 
 ```{r}
 ggplot(reduced_df, aes(x = blueKills, 
@@ -229,14 +241,13 @@ ggplot(reduced_df, aes(x = blueKills,
   labs(title = "Relationship between Experience and kills")
 ```
 
-Another positive linear relation! So yes, our data can really be summed up by gold, experience, and objective; however, this also means that there are many highly correlated variable as we saw in the correlation plot, and we will keep this in mind.
+Another positive linear relation! Similar to kills, many of our other variables express the same relation with gold, experience, and objectives; however, this also means that there are many highly correlated variable as we saw in the correlation plot, and we will keep this in mind.
 
 With that being said, let's take a look at our major factors in a team's ability to win.
 
 ### Plots for Objective, Gold, and Experience
 
-After thinking about all of our variables, everything can be summed up with gold, experience, and objectives.
-Let's see how they affect a team's win one-by-one.
+After thinking about all of our variables, a majority of variation in our data can be explained with gold, experience, and objectives. Let's see how they affect a team's win one-by-one.
 
 One of the most important factors that determines a team's ability to win is how many objectives they have. Below are percent stacked bar charts for two major objectives in a match of League of Legends: dragons and towers.
 
@@ -259,9 +270,9 @@ ggplot(reduced_df, aes(x = blueTotalExperience,
 
 The graph above shows that more the more gold and experience a team has, the more likely they are to win the match. Which makes a lot of sense; gold, experience, and objectives are the core to winning a match of league of legends.
 
-So this supports our theory that the outcome of a match of League of Legends is highly related to the gold, experience, and objectives that a team acquires. Now for the controversial question, which out of those three, is more important than the others?
+So this supports our theory that the outcome of a match of League of Legends is highly related to the gold, experience, and objectives that a team acquires. Now for the controversial question, which out of those three, is more important?
 
-There is only so much a team can do in the first 10 minutes of a match; it would be much better if we know what to focus on for a higher chance of winning.
+There is only so much a team can do in the first 10 minutes of a match; it would be much better if we know what to focus on for a higher chance of winning. Should the team focus on getting Gold? Or should they focus on taking Objectives? Or should the team thirst for blood and kill for experience?
 
 In order to find out more about our data, we will now fit a few machine learning models to see what they have to say about what's important when trying to win a match on League of Legends.
 
@@ -271,7 +282,7 @@ Let's set up our data for machine learning methods by splitting the data into tr
 
 ## Initial Split
 
-Before we perform a split, there is something that we must address. We must stratify our data on `blueWins` in order to preserve the proportions of win-lose ratio present in our raw data. 
+Before we perform a split, there is something that we must address. We must stratify our data on `blueWins` in order to preserve the proportions of win-lose ratio present in our data. 
 
 However, something interesting we must take note of is that it is argued in LoL that the blue team has a higher chance of wining because of 'pick/ban phase.' We will not get into the nitty-gritty of pick/ban and simply take for granted that blue side may have a higher win percentage. In fact, let's see if this trend exists within our model:
 
@@ -280,9 +291,9 @@ However, something interesting we must take note of is that it is argued in LoL 
 count(reduced_df, blueWins)
 ```
 
-Interesting, it seems that our model is actually quite balanced in terms of win-lose ratio; however, we must still stratify or split by `blueWins` in order to keep this 50-50 ratio across our training and testing sets.
+Interesting, it seems that our model is actually quite balanced in terms of win-lose ratio; however, we must still stratify by `blueWins` in order to keep this 50-50 ratio across our training and testing sets.
 
-I will go ahead and perform the initial split of the data into 80-20 train-test, and I will be stratifying the data on `blueWins`.
+I will go ahead and perform the initial split of the data into 80-20 train-test set, and I will be stratifying the data on `blueWins`.
 
 ```{r}
 set.seed(10502)
@@ -294,7 +305,7 @@ df_test <- testing(df_split)
 
 ## Model recipe
 
-Now let's formulate our recipe! Remember the problem we had with high correlation between our predictors? We will use `step_zv()` you get rid of any of those troublesome predictors here in our recipe. Furthermore, although we are interested in gold, experience, and objectives, we will still fit all of our non-highly correlated predictors as there may be certain factors that are not accounted for by gold, experience, and objective such as `wardsPlaced` and `wardsDestroyed`. 
+Now let's formulate our recipe! Remember the problem we had with high correlation between our predictors? We will use `step_zv()` you get rid of any of those troublesome predictors here in our recipe. Furthermore, although we are interested in gold, experience, and objectives, we will still fit all of our non-highly correlated predictors as there may be certain factors that are not accounted for by gold, experience, and objective such as `blueWardsPlaced` and `blueWardsDestroyed`. 
 
 ```{r}
 # Recipe
@@ -324,6 +335,8 @@ df_folds <- vfold_cv(df_train, v = 5, strata = blueWins)
 
 Here, we will be using 5-fold cross-validation since we only have around 8,000 observations in our training data. This way, we will have around 1600 observations in each fold; a pretty good number for training.
 
+![Example of 5-fold](./images/k-fold.png)
+
 ## Saving our Split, Folds, and Recipe
 
 Saving our folds, recipe, and train/test split for our machine learning scripts.
@@ -335,13 +348,13 @@ save(df_folds, LoL_recipe, df_train, df_test, file=
 
 # Model Tuning
 
-Now that we have our folds, recipe, and split; we are ready to start feeding our data into our models to begin the tuning process.
+Now that we have our folds, recipe, and split; we are ready to start feeding our data into machine learning models to begin the tuning process.
 
 ## Tuning the models
 
 The models will be tuned in a separated R script; however the basic steps for our model tuning goes like this:
 
-1. Set up the model by defining it's type, engine, and its mode (for us it was classification)
+1. Set up the model by defining it's type, engine, and its mode (for us it is classification)
 2. Set up a workflow using our recipe and the model defined from part 1
 3. Set up a tuning grid defining our hyperparameters and levels
 4. Use the tune-grid() function to tune the model with different hyperparameters across all of out folds
@@ -364,7 +377,7 @@ Now that we have our tuning results; how do we know which model to use and what 
 
 ### What is ROC_AUC?
 
-An ROC curve is a graph showing the performance of a classification model at all classification thresholds. The ROC curve measures the True(sensitivity) and False(1 - specificity) positive rates.
+ROC curve is a graph showing the performance of a classification model at all classification thresholds. The ROC curve measures the True(sensitivity) and False(1 - specificity) positive rates.
 
 ![**(Visual 1.2)**](./images/roc_auc.png)
 
@@ -386,11 +399,11 @@ comparison_tb <- bind_rows(rf_best, bt_best, log_best, knn_best, glm_best, svm_b
 models <- c('random forest', 'boosted tree', 'logistical','knn','elastic net', 'support vector machine')
 comparison_tb <- cbind(models, comparison_tb)
 comparison_tb<- comparison_tb[order(comparison_tb$mean, decreasing = TRUE),]
-comparison_tb
+comparison_tb[c(1,5,7,8,9)]
 ```
 Looking at our models, they all performed around the same with `knn` being the only model scoring below 0.80 on the mean `roc_auc` value. However, we will take a look at the best performing model: the elastic net(mean `roc_auc` = 0.810). Along with our best performing, we will also take a look at the boosted tree model(mean `roc_auc` = 0.808) just for fun!
 
-![](./images/ornn.gif)
+![Time to Get to Work](./images/ornn.gif)
 
 ## Fitting our best models
 
@@ -404,7 +417,13 @@ However, before we begin fitting the models to the training data, let's take a c
 autoplot(glm_res)
 ```
 
-It looks like the Elastic Net model prefers a smaller penalty if the mixture is large and a greater penalty when mixture is small; however the most optimal ended up being a penalty of 0 and mixture of 1. This suggests that a pure lasso model fits our data the best!
+It looks like the Elastic Net model prefers a smaller penalty if the mixture is large and a greater penalty when mixture is small; but, what is the actual values of our hyperparameters?
+
+```{r}
+glm_best
+```
+
+The most optimal hyperparameters ended up being `penalty` = 0 and `mixture` = 1. This suggests that a pure lasso model fits our data the best!
 
 **What about our boosted-tree?**
 
@@ -413,6 +432,10 @@ autoplot(tune_bt)
 ```
 
 It looks like the number of trees in our model does not matter that much as number of trees does not have a significant effect on our `roc_auc`. The number of randomly selected predictors (`mtry`) seems to affect the `roc_auc` slightly, as an increase in `mtry` seem to cause a decrease in `roc`auc`. Finally, the learning rate seems to be most optimal around the middle of our tuning range.
+
+```{r}
+bt_best
+```
 
 In the end, our most optimal boosted tree has a `mtry` = 8, `trees` = 100, and `learn_rate` = 3.162278e-06.
 
@@ -460,9 +483,9 @@ bt_final_fit <- fit(bt_final, data = df_train)
 
 # Model performance on testing set
 
-Now we have two models fitted on our training data; an elastic net model with a mean `roc_auc` value of 0.810, and a boosted tree model with a mean `roc_auc` value of 0.808. However, how will these numbers hold up when we test our models with our testing set?
+Now we have two models fitted on our training data. However, this is only with our training data. How will these numbers hold up when we test our models with our testing set?
 
-By using a set of data that never-seen before by our model, will our model continue to perform with high `roc_auc` values or will we find that our model has flaws such as overfitting?
+By using a set of never-seen before data, will our model continue to perform with high `roc_auc` values or will we find that our model has flaws such as overfitting to the training set?
 
 Let's look at them individually.
 
@@ -507,7 +530,7 @@ The actual value of `roc_auc` is 0.805. Great, this means that our model is able
 
 ### Variable Importance Chart
 
-Now I know 0.805 is not the best, but it is quite reliable for the purposes of this project. So can this boosted tree model tell me what is the most important factor when it comes to winning a game of League of Legends?
+Now 0.805 may not be the best, but it is quite reliable for the purposes of this project. So can this boosted tree model tell me what is the most important factor when it comes to winning a game of League of Legends?
 
 Let's take a look at the model's measurements for the importance of variables:
 
@@ -606,7 +629,7 @@ The accuracy of our elastic net model seems to be around the same as the boosted
 
 ## What we found
 
-In a game of League of Legends, there are many factors than affect a team's ability to win; however, we narrowed the long list of factors down to three major ones: gold, experience, and objectives. Then, we used a few machine learning models to see if we can predict the outcome of a LoL match with the given factors. We were able to determine that the most important factor in deciding a match's outcome is `gold`. More specifically, `blueGoldDiff` which is the team's lead in gold against the opponent's team.
+In a game of League of Legends, there are many factors that affect a team's ability to win; however, we narrowed the long list of factors down to three major ones: gold, experience, and objectives. Then, we used a few machine learning models to see if we can predict the outcome of a LoL match with the given factors. We were able to determine that the most important factor in deciding a match's outcome is `gold`. More specifically, `blueGoldDiff` which is the team's lead in gold against the opponent's team.
 
 ![](./images/gold.jpeg)
 
@@ -621,12 +644,12 @@ ggplot(reduced_df, aes(x = blueWins,
   labs(title = "Relationship between Gold and win")
 ```
 
-So it seems that a team needs, on average, a 1000 gold lead at the 10-minutes mark is more likely to win. Also, it seems that the reverse is true as well, which makes sense; a team that is 1000 gold behind a the 10-minute mark is more likely to lose the match.
+So it seems that a team needs, on average, a 1000 gold lead at the 10-minutes mark is more likely to win. Also, it seems that the reverse is true as well, which makes sense; a team that is 1000 gold behind at the 10-minute mark is more likely to lose the match.
 
 ## What can be improved
 
-League is a game that is constantly changing, a model done with an updated data set might be more accurate to today's League of Legends. One of the biggest problems when fitting our models is the overwhelming amount of linear dependence in predictors; in the future, I would look for other methods of dealing with linear dependence in our data rather than simply removing them. One approach that I have in my mind is to use Principle Component Analysis to project the data onto eigenvectors before fitting. Finally, a different model may fit this data better; however considering the best model was a Elastic Net(LASSO), I am unsure if a more complex model can do any better.
+League is a game that is constantly changing, a model done with an updated data set might be more accurate to today's League of Legends. One of the biggest problems when fitting our models was the overwhelming amount of linear dependence in predictors; in the future, I would look for other methods of dealing with linear dependence in our data rather than simply removing them. One approach that I have in mind is to use Principle Component Analysis to project the data onto eigenvectors before fitting. Finally, a different model may fit this data better; however considering that the best model was an Elastic Net(LASSO), I am unsure if a more complex model can do any better.
 
 ![](./images/dance.gif)
 
-With that being said, thank you for reading this report. I hope it was somewhat insightful for League of Legends player and non-players alike.
+With that being said, thank you for reading this report. I hope it was somewhat insightful for League of Legends players and non-players alike.
